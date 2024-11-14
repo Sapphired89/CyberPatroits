@@ -1,4 +1,8 @@
-import subprocess, os, shutil, time
+import subprocess
+import os
+import shutil
+
+from utils import faillock, nc, rm_nullock, shadow, sysctl, vsftpd
 
 class bcolors:
     HEADER = '\033[95m'
@@ -11,6 +15,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+# Enables UFW
 def enable_ufw():
     if shutil.which("ufw"):
         print(f"{bcolors.OKCYAN}Enabling UFW...{bcolors.ENDC}")
@@ -29,22 +34,7 @@ def enable_ufw():
     else:
         print(f"{bcolors.FAIL}UFW not found!{bcolors.ENDC}")
 
-def update():
-    subprocess.call(["sudo", "apt-get", "update"])
-    subprocess.call(["spd-say", "\"update has finished\""])
-    print("---------")
-    time.sleep(1)
-
-    subprocess.call(["sudo", "apt-get", "upgrade", "-y"])
-    subprocess.call(["spd-say", "\"upgrade has finished\""])
-    print("---------")
-    time.sleep(1)
-
-    subprocess.call(["sudo", "apt-get", "dist-upgrade", "-y"])
-    subprocess.call(["spd-say", "\"dist-upgrade has finished\""])
-    print("---------")
-    time.sleep(1)   
-
+# Finds MP3 files
 def find_mp3s():
     print(f"{bcolors.OKCYAN}Searching for MP3 files...{bcolors.ENDC}")
     try:
@@ -64,6 +54,14 @@ def find_mp3s():
     except Exception as e:
         print(f"{bcolors.FAIL}An error occurred: {e}{bcolors.ENDC}")
 
+# Updates package lists
+def update():
+    if shutil.which("apt"):
+        subprocess.run(['sudo', 'apt', 'update'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    else:
+        print(f"{bcolors.FAIL}apt not found!{bcolors.ENDC}")
+
+# Lists authorized users
 def list_authorized_users():
     print(f"{bcolors.OKCYAN}\nListing all authorized users...{bcolors.ENDC}")
     users = []
@@ -77,8 +75,9 @@ def list_authorized_users():
                     print(f"{bcolors.OKGREEN}User: {username}{bcolors.ENDC}")
     except Exception as e:
         print(f"{bcolors.FAIL}An error occurred while listing users: {e}{bcolors.ENDC}")
-    return users 
+    return users  # Return the list of users
 
+# Removes packages
 def rm_pkg(package):
     if package and package.lower() != 'quit':
         if shutil.which("apt"):
@@ -99,12 +98,14 @@ def rm_pkg(package):
     else:
         print(f"{bcolors.WARNING}Invalid package name or quit command received.{bcolors.ENDC}")
 
+# Removes a few packages beforehand
 def pre_rm():
     print("--------------------\nPre Script Removal:\n")
     rm_pkg('wireshark')
     rm_pkg('ophcrack')
     rm_pkg('openciv')
 
+# Runs a command
 def run_command(cmd, sudo=False):
     if sudo:
         cmd.insert(0, 'sudo')
@@ -273,3 +274,11 @@ if __name__ == "__main__":
     set_password_history()
     set_lockout_policy()
     check_and_disable_ssh_root_login()
+
+    faillock.create_pam_faillock_configs()
+    nc.remind()
+    rm_nullock.remove_nullok_from_common_auth()
+    shadow.modify_shadow_permissions()
+    sysctl.update_sysctl_settings()
+    vsftpd.disable_vsftpd_service()
+    
